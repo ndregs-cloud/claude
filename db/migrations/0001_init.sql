@@ -146,7 +146,7 @@ CREATE TABLE payment_attempts (
   id           UUID PRIMARY KEY,
   order_number TEXT NOT NULL REFERENCES orders(order_number),
   amount_idr   BIGINT NOT NULL CHECK (amount_idr >= 0),
-  currency     CHAR(3) NOT NULL DEFAULT 'IDR',
+  currency     CHAR(3) NOT NULL DEFAULT 'IDR' CHECK (currency = 'IDR'),
   status       payment_attempt_status NOT NULL DEFAULT 'created',
   provider_ref TEXT NOT NULL UNIQUE,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -209,6 +209,12 @@ CREATE TABLE audit_logs (                   -- append-only
 
 -- Row Level Security: akses langsung dari klien wajib dibatasi per pemilik.
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
-CREATE POLICY orders_owner_select ON orders FOR SELECT USING (user_id = auth.uid());
+-- Policy hanya dibuat jika schema auth tersedia (Supabase). Di Postgres biasa, akses hanya lewat server.
+DO $$
+BEGIN
+  IF to_regnamespace('auth') IS NOT NULL THEN
+    CREATE POLICY orders_owner_select ON orders FOR SELECT USING (user_id = auth.uid());
+  END IF;
+END $$;
 
 COMMIT;
